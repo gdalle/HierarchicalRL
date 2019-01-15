@@ -21,6 +21,7 @@
 \newcommand{\Rr}{\mathbf{R}}
 \newcommand{\Pp}{\mathbb{P}}
 \newcommand{\Ee}{\mathbb{E}}
+\newcommand{\etal}{\textit{et al.}}
 
 \title{Hierarchical reinforcement learning}
 
@@ -130,7 +131,14 @@ Therefore, all that is needed to reconstruct the value function are the quantiti
 
 The fourth approach we detail is the options framework, which was introduced by Sutton, Precup and Singh \cite{sutton_between_1999} and is the basis of much of the modern research on HRL. It forms an extension of the classical MDP setting, where we consider sequences of actions with extended time durations, the so-called \textit{options}.
 
-Formally, we define an option $\omega \in \Omega$ as a tripel $(\mathcal{I}_\omega, \pi_\omega, \beta_\omega)$. The initiation set $\mathcal{I}_\omega \subset \mathcal{S}$ is the set of states where the option is available. Once an option is selected, the agent follows the non-deterministic policy $\pi_\omega$, until the option stochastically terminates with probability $\beta_\omega$ depending on the current state. Primitive actions are then special cases of options that always terminate after one step. Note that the policies $\pi_\omega$ can  depend on the history of states, actions and rewards since the initiation of the option (and not only on the current state $s_t$), which makes it "semi-Markov".
+\begin{wrapfigure}{r}{3.5cm}
+    \centering
+    \includegraphics[width=3.5cm]{images/single_option.png}
+    \caption{Policy for a single option in the four-room problem. \small \it Image from \cite{sutton_between_1999}.}
+    \label{fig:single-option}
+\end{wrapfigure}
+
+Formally, we define an option $\omega \in \Omega$ as a tripel $(\mathcal{I}_\omega, \pi_\omega, \beta_\omega)$. The initiation set $\mathcal{I}_\omega \subset \mathcal{S}$ is the set of states where the option is available. Once an option is selected, the agent follows the non-deterministic policy $\pi_\omega$, until the option stochastically terminates with probability $\beta_\omega$ depending on the current state. Primitive actions are then special cases of options that always terminate after one step. Note that the policies $\pi_\omega$ can  depend on the history of states, actions and rewards since the initiation of the option (and not only on the current state $s_t$), which makes it "semi-Markov". The authors in \cite{sutton_between_1999} illustrate the notion of option with the example of the four-room navigation problem. We reproduce in figure \ref{fig:single-option} the subpolicy of an option for moving from one (abstract) room to another.
 
 With these notations, an episode unfolds as follows: the agent picks an option to start with, and follows its policy until it terminates, then it chooses another option, and so on until termination. The options are chosen with a \textit{policy over options} $\pi_\Omega : \mathcal{S} \times \Omega \rightarrow [0, 1]$. An MDP endowed with an options set $\Omega$ and a policy $\pi_\Omega$ is thus an SMDP : the actions of the SMDP are the options in the MDP.
 The value functions easily generalize: for instance we can define the option-value function $Q^{\pi_\Omega} : \mathcal{S} \times \Omega \rightarrow \Rr$ and the optimal option-value function $Q^*_\Omega$ as follows :
@@ -150,80 +158,111 @@ Q^*_\Omega(s, \omega) = \max_{\pi_\Omega} Q^{\pi_\Omega}(s, \omega)
 
 These values are suboptimal compared with the MDP's classical value functions since the primitive actions may not be available as options : this is the price of the abstraction. Yet, these functions satisfy generalized Bellman equations which can be used to derive learning algorithms.
 
-In the original article \cite{sutton_between_1999}, the options structure is given. In this situation, the authors show that well selected options drastically speed up the convergence of estimation algorithms. In figure \ref{fig:svi}, we show their experiment in the four rooms problem. The Synchronized Value Iteration converges much faster in the MDP with options than in the classical setting.
+In the original article \cite{sutton_between_1999}, the options structure is assumed to be known. In this situation, the authors show that well selected options drastically speed up the convergence of estimation algorithms. In figure \ref{fig:svi}, we show their experiment in the four rooms problem. The Synchronized Value Iteration converges much faster in the MDP with options than in the classical setting.
 
 \subsection{Comparison of the frameworks}
 
-We now discuss the merits and drawbacks of the four frameworks introduced above, by comparing them along several axes.
+We now discuss the merits and drawbacks of the four frameworks introduced above, by comparing them along several axes. This comparison is performed essentially with respect to the original articles introducing the frameworks, regardless of later developments.
 
-\paragraph{Information to supply}
+\paragraph{Information to supply} The differences between the input requirements of these methods are essential, because structure definition is the part often requiring problem-specific knowledge. In this regard, the options framework is more demanding than the others, because specifying an option means defining an entire local policy. Meanwhile, in the HAM or MAXQ formulation, all that is needed is a description of the subtasks and their mutual dependencies: the means to achieve them are then learned automatically. On the other hand, expliciting the graph structure of subtasks can be quite challenging. This is especially true for FRL, where the link between descending orders and manager-decided rewards is never made concrete.
 
-Goals vs policies, local rewards
+\paragraph{Convergence} While the FRL article remains vague about convergence issues, the papers introducing HAM, MAXQ and the options each give a justification of convergence for their respective learning algorithm. However, these strongly differ in the properties of the limit policy. While SMDP learning algorithms for HAM and options converge to a hierarchically optimal policy (that is, the best possible policy within the limits of the given hierarchical structure), MAXQ-Q only converges to a recursively optimal policy (that is, a hierarchical policy such that for each task $M_i$, $\pi_i$ is locally optimal given the policies $\pi_a$ chosen for its subtasks $a$). This enables subproblems to be solved regardless of the context, at the price of a possible loss in efficiency.
 
-\paragraph{Mathematical complexity}
+\paragraph{Mathematical complexity} In philosophical terms, as \cite{jong_utility_2008} points out, there is a great divide between the options framework and the three others we presented. As long as they are made available in addition to primitive actions, options only widen the horizon of RL algorithms, hoping to perform more targeted exploration and thus hasten convergence: the added complexity brings acceleration. Conversely, FRL, HAM and MAXQ are designed to heavily constrain the search space, thus reducing the number of possibilities to check in each iteration of the learning algorithms: here the acceleration is due to simplification. To go even further, \cite{dietterich_hierarchical_2000} formally describes a series of 5 conditions allowing state abstraction within the MAXQ temporal abstraction framework, which works towards even more simplification thanks to a systematic reduction method.
 
-\paragraph{Convergence} Hierarchically optimal / recursively optimal for MAXQ
+\paragraph{Implementation complexity} Even though on the theoretical level, options increase the complexity of the action space, on the practical level they seem much easier to implement, because they require no recursive structure. Since the options considered are generally semi-Markov (depending on a whole chunk of history), defining an option over options just means defining a more complex option, which is still semi-Markov. This may partly justify the success of options compared with FRL, HAM and MAXQ: with them, there is no need to program a complex structure of managers / machines / subtasks or the intricacies of the MAXQ-Q learning algorithm.
 
-\paragraph{Recursive depth} 2 for options, more for the reste
-
-\paragraph{Interruption}
-
-\paragraph{State abstraction}
-
-Multiple similar tasks must be learned separately
+Other ideas: interruptions
 
 \section{Learning the hierarchy} \label{learning}
 
-Now that we have several methods to represent a given hierarchy of subtasks, we have to ask how to learn one automatically. We will present a few approaches in detail, spread across multiple frameworks and covering both classical and deep learning techniques.
+Now that we have surveyed several methods to represent a given hierarchy of subtasks, we have to ask how to learn one automatically. We will present a few approaches in detail, spread across multiple frameworks and covering both classical and deep learning techniques.
 
 \subsection{Classical approaches}
 
-\subsubsection{Bottleneck states for option discovery}
+We first present various proposals from the 2000's that make no use of neural networks. They are grouped by choice of modeling framework.
 
-Sutton et al.'s options formulation \cite{sutton_between_1999} is by far the most widely used when trying to learn the hierarchical structure of a task, because it lends itself naturally to the definition of subgoals. Note that simply finding a subgoal is not enough: the local policy allowing to reach it must also be computed. This is often done separately in the articles listed below.
+\subsubsection{Bottleneck and subgoal states for option discovery}
 
-The first idea to define relevant subgoals in an MDP is to look for milestone states, ie. states that are critical to the success of a trajectory or the transition between different parts of the state space. , which is the most widely used, 
+Sutton \etal's options formulation \cite{sutton_between_1999} is by far the most widely used when trying to learn the hierarchical structure of a task, because it lends itself naturally to the definition of subgoals. Subgoal states are interesting milestones on the way to the endgoal, for instance because they are \textit{bottlenecks} between two parts of the state space. We present several heuristics aimed at automatically discovering such states, on the basis of a collected history of trajectories.
 
-\begin{itemize}
-    \item Multiple instance learning and diverse density \cite{mcgovern_automatic_2001} or relative novelty  \cite{simsek_using_2004}
-    \item Generate a graph representing the MDP's exploration history, and apply min cut \cite{goos_q-cutdynamic_2002} or clustering \cite{mannor_dynamic_2004} or local cut \cite{simsek_identifying_2005}
-\end{itemize}
+The first type of methods uses intuitive threshold criteria to distinguish the most promising states. In order to select emergent features defining temporally extended behaviours, \cite{digney_learning_1998} proposes two metrics: high reinforcement gradient (ie. immediate reward) and high frequency of visits. Multiple-instance learning is used by \cite{mcgovern_automatic_2001} to detect subgoals: successful trajectories are considered as bags containing at least one positive sample, while failed trajectories contain only negative sample. The relative novelty concept of \cite{simsek_using_2004} suggests that bottleneck states are recognizable because the states that follow them in the trajectories are often more frequently visited in the last time steps than the states preceding them.
 
-\subsubsection{Recursive hierarchy building for MAXQ-like decompositions}
+Another category of approaches makes use of the graph structure induced by collected trajectories on the state space, which is an approximation of the underlying MDP transition scheme. One possibility is to look for interesting minimum cuts in this graph (\cite{goos_q-cutdynamic_2002}, \cite{simsek_identifying_2005}), which can be thought of as shallow frontiers between large areas, crossed by a sizeable flow of trajectories. Another way is to cluster the graph, as is done in \cite{mannor_dynamic_2004}, looking for clusters that are comparable in size, weakly connected with one another and have states with similar values: paths between elements of these clusters are then learned as options.
 
-To find a decomposition adapted to the MAXQ framework (or with some contorsions to the HAM formulation), we have to work a bit more. Indeed, options designed at reaching subgoals simply have to be ordered one after the other, whereas MAXQ subtasks form a directed graph with several levels of abstraction. 
+Note that when working with options, simply finding a subgoal is not enough: the local policy allowing to reach it must also be computed. In the articles listed above, this is often done separately, e.g. with the \textit{experience-replay} method of \cite{lin_self-improving_1992}. This was introduced as an improvement to standard algorithms such as Q-learning, enabling them to better exploit past experiences by reusing them in the stochastic approximation if they are in line with the current policy. In particular, experience replay makes it possible to learn options simply by looking back on previous trajectories.
 
-\begin{itemize}
-    \item \cite{hengst_discovering_2002} works on factored MDPs by defining subtasks to move between regions where one factor variable is constant.
-    \item \cite{jonsson_causal_2006} and \cite{mehta_automatic_2008} are more advanced and use Bayesian networks to model relations between factor variables and actions (worth citing ?)
-\end{itemize}
+\subsubsection{Subgoal discovery for feudal structures}
+
+Here we present a procedure for learning options that we think is closely related to a feudal view of HRL: the HASSLE algorithm of \cite{bakker_hierarchical_2004}. It is described for a two-layer hierarchy consisting of one high-level policy $\pi^H$ (a manager) and several low-level policies $\pi_i^L$ (or sub-managers, or options). The high-level policy only sees the current \textit{abstract observation} $o_s^H$, choosing at each time step the abstract observation $o_g^H$ it wants to see next. This couple $(o_s^H, o_g^H)$ is then passed along to the lower-level policies, which are in charge of reaching this desired abstract observation. Each $\pi_i^L$ stores a capability value $C_i(o_s^H, o_g^H)$, which quantifies its potential to reaching subgoal $o_g^H$ from $o_s^H$, and makes it more or less likely to be selected. Crucially, when $\pi_i^L$ is indeed selected, this capacity value is increased or decreased by the higher-level policy depending on whether or not $\pi_i^L$ has achieved the subgoal: this is the equivalent of managers rewarding their subordinates for executing the orders. Both high-level and low-level policies are learned simultaneously using standard routines such as Q-learning.
+
+\subsubsection{Hierarchy building in in factored MDPs}
+
+While the previous methods were applicable to general MDPs, having more hypotheses on the structure of the problem can help design more relevant algorithms. Here we list a few approaches developed in the framework of factored MDPs, where the state variable is represented by a vector $(s^1, ..., s^k)$.
+
+The HEXQ algorithm of \cite{hengst_discovering_2002} defines an order among the coordinates of the state, which depends on each coordinate's frequency of change: in particular, the factor variable that changes most often (ie. the position of the agent, as opposed to the location of the passenger or the destination) will be associated with the lowest level of the hierarchy. Its possible values are then grouped into connected components, or regions, which will contribute to define abstract states for the next hierarchical level. These regions only model a part of the state information, therefore they also possess so-called exits, ie. actions that lead to changes in higher-level factor variables. The abstract actions available at the upper level are the policies leading to region exits at the lower level. Thus, the HEXQ decomposition algorithm can be easily expressed with the MAXQ formalism, and it exploits the connection between temporal abstraction and state abstraction that was suggested in \cite{dietterich_hierarchical_2000}.
+
+\cite{jonsson_causal_2006} goes a bit deeper in the modeling of factor variable dependencies. The use of Dynamic Bayesian Network, a type of probabilistic graphical model, enables the authors to express non-linear structures of influence between variables (as opposed to HEXQ which merely orders them). Using this information, they learn options aimed at reaching each exit context by expressing them as the solution to a sub-MDP with reduced (and abstracted) state and action spaces.
 
 \subsubsection{Intrinsic motivation}
 
-Proposed by \cite{chentanez_intrinsically_2005}.
+The method detailed in this section was formalized by \cite{chentanez_intrinsically_2005}. It doesn't assume that the exploration of the environment is driven by any specific problem, but rather that its purpose is to learn and store generic skills. Those skills may then be reused in solving a wide variety of challenges.
+
+To perform intrinsically motivated RL, the agent maintains a hierarchy of learned skills, which will grow over time. During exploration, as soon as a \textit{salient state} is encountered (a situation which we suppose can be instantly recognized), the agent will define an option to reach it. Therefore, at first, only the subgoal of the option is known, but a system of intrinsic rewards will allow the agent to learn the paths leading to this subgoal (thus extending the initiation state and option policy) as the exploration continues.
+
+As a final remark, note that contrary to the other option-related methods we presented, this algorithm can and should be executed online. Indeed, the mixture of external and intrinsic rewards strike a balance between solving the global problem and refining local options.
+
+\subsubsection{Recent non-deep proposals}
+
+
 
 \subsection{Deep learning approaches}
 
-\begin{itemize}
-    \item options (predefined subgoals) + DQN \cite{kulkarni_hierarchical_2016}
-    \item option-critic \cite{bacon_option-critic_2016} $\rightarrow$ option discovery
-    \item STRAW \cite{alexander_strategic_2016}
-    \item Stochastic Deep Networks \cite{florensa_stochastic_2017}
-    \item FuN \cite{vezhnevets_feudal_2017} (\& FuDRL \cite{casanueva_feudal_2018} ?)
-\end{itemize}
+In the wake of the paper by Mnih \etal~\cite{mnih_human-level_2015} on deep Q-networks (DQN) in 2015, novel RL algorithms (\cite{alexander_strategic_2016, bacon_option-critic_2016, casanueva_feudal_2018, florensa_stochastic_2017, kulkarni_hierarchical_2016}) were published over the last few years. Some approaches adapt the classical HRL frameworks into trainable deep learning models. Others take stock on the intrinsic abilities of neural networks to build internal representations adapted to the problem structure. In both cases, the deep learning approach allows to handle huge state and action spaces in a parametrized way. Thus they address the issue of option discovery in large domains. Papers like that of Konidaris \& Barto \cite{konidaris_skill_2009} proved that this problem requires careful supervision in a classical framework. On the contrary, deep HRL provides end-to-end learning algorithms which achieve state-of-the-art performance in HRL. In the following section, we present two different HRL architectures, adapting the options framework on the one hand and the FRL on the other hand into neural networks.
 
-In the wake of the paper by Mnih \textit{et al.} \cite{mnih_human-level_2015} on deep Q-networks (DQN), novel algorithms (\cite{kulkarni_hierarchical_2016, bacon_option-critic_2016, alexander_strategic_2016, casanueva_feudal_2018, florensa_stochastic_2017}) were published over the last few years. Some approaches adapt the classical HRL frameworks into trainable deep learning models. Others take stock on the intrisic abilities of neural networks to build internal representations adapted to the problem structure.
+\subsubsection{The Option-Critic Architecture}
 
-\subsubsection{Deep option-critic}
+In their 2016 article \cite{bacon_option-critic_2016}, Bacon \etal~ extend the classical Actor-Critic method to the options framework. The authors prove a new version of the Policy Gradient Theorem for parametrized options $\omega_{\mu, \nu} = (\mathcal{S}, \pi_{\omega, \mu}, \beta_{\omega, \nu})$ (all options are available everywhere). This theorem yields a gradient which is used to learn the policy and stopping criterion parameters. At each training step, the current options parameters and the option-value function are updated, so that the networks learns the subpolicies and the policy over options at the same time.
 
-In \cite{bacon_option-critic_2016}, Bacon \textit{et al.} extended the classical actor-critic method to the options framework.
+\begin{wrapfigure}{r}{4cm}
+    \centering
+    \includegraphics[width=4cm]{images/option-critic-4room.png}
+    \caption{Termination probabilities for the option-critic
+agent learning with 4 options (image from \cite{bacon_option-critic_2016}). \small \it Lighter colors encode higher termination probabilities.}
+    \label{fig:opt-crit}
+\end{wrapfigure}
 
-\subsubsection{Feudal networks}
+An important contribution of this method is the option discovery method: the agent's behaviour is learned end-to-end through the optimization problem. Using a Boltzmann policies to parametrize the options, the authors solve the four-rooms navigation problem presented earlier. The termination probabilities for the each option are displayed in figure \ref{fig:opt-crit}. The highest spots are clustered near the hallways: it turns out that the agent learned a meaningful options structure that corresponds to the underlying abstract state space.
 
+As a gradient-based method, the option-critic architecture lends itself to deep learning integration. In \cite{bacon_option-critic_2016} the authors test their method in the Arcade Learning Environment. The options and the overall policy parameters were learned through a convolutional neural network, and converged toward better performances than a classical DQN.
 
+% Interestingly, the option-critic did not converge faster as other methods, since the first learning phase had to determine both the options structure and the policy over options. However, when abruptly changing the goal of the RL problem (in the four-rooms problem, moving the terminal state), it converged much faster toward the optimal policy, since it only had to learn a new $\pi_\Omega$.
+
+As mentioned in \cite{alexander_strategic_2016} and \cite{vezhnevets_feudal_2017}, this architecture was only tested on relatively easy examples, thus the performance on harder problems like Atari games with rare rewards remains an open question.
+
+\subsubsection{Feudal Networks}
+
+In 2017, Vezhnevets \etal~\cite{vezhnevets_feudal_2017}, the authors adapt the feudal RL paradigm originally introduced in \cite{dayan_feudal_1993} into a new deep learning architecture, the FeUdal Network (FuN). The main idea they take stock on is that of a Manager giving goals and rewards to a Worker. In their paper, only one abstraction level is considered, but the approach can theoretically scale up to higher abstraction layers.
+
+At each time step, the Manager and the Worker both receive a preprocessed state $z_t$. The manager encodes this state into a internal latent state $s_t(z_t)$. This internal state is fed into a recurrent neural network (RNN) which outputs a goal $g_t(s_t, s_{t-1}, ...)$, which is a high-dimensional vector. The moving average $w_t(g_t, ..., g_{t-k})$ of the last goals is transmitted with a linear transform to the Worker. On the Worker's side, the observation $z_t$ is fed into another RNN and produces a matrix $U_t(z_t, z_{t-1}, ...)$. The actions probabilities are then defined by $a_t = \mathrm{SoftMax}(U_t \times w_t)$. The pipeline is summed up in figure \ref{fig:fun}.
+
+\begin{wrapfigure}{r}{7cm}
+    \centering
+    \includegraphics[width=7cm]{images/fun.png}
+    \caption{The schema of a feudal network, reproduced from \cite{vezhnevets_feudal_2017}}
+    \label{fig:fun}
+\end{wrapfigure}
+
+In the FuN, the Manager uses an internal state to generate a high-dimensional goal, which is given to the Worker, which has to try to this goal. Like in the original FRL setting, the reward $r_t$ is collected by the Manager. The Worker gets a pseudo-reward $r^W_t = r_t + \alpha r^M_t$ where $r^M_t = \frac 1T \sum_{i=0}^T d_\mathrm{cos}(s_t-s_{t-i}, g_{t-i})$, where $T$ is a time horizon and $d_\mathrm{cos}$ the cosine similarity. This means that the Manager considers that the Worker moves toward the goal iff its latent state evolves in the direction of the goal.
+
+The Manager and Worker's parameters (for the input $z_t$ preprocessing, the Manager latent space $s_t$ embedding, the goal $g_t$ linear embedding and the RNNs) are learned through two distinct gradient steps (derived from variants of the classical policy gradient). This scheme hardcodes the distinction between the Manager and the Worker, thus preventing the optimization from considering the architecture as a monolithic model.
+
+FuNs beats the performance achieved in the option-critic paper \cite{bacon_option-critic_2016} on similar experiments. They successfully discover advantageous subgoals and the related policies, and learn very fast compared with other recurrent approaches.
+
+\subsection{}
 
 \small
-\bibliographystyle{plain}
+\bibliographystyle{unsrt}
 \bibliography{HRL}
 
 \end{document}
